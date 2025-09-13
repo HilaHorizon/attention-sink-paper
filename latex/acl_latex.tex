@@ -162,13 +162,7 @@ interventions on each mechanism component during forward passes to test necessit
 \Resolved{Now to the annoying part - we need to somehow say that this is robust and happens in many layers, so say we add more layers in the appendix and do this, it's ok if it's not as robust this experiment but people expect this info to be present. Please go after this over all the paper and think where else we need to add more experiments to the appendix.}
 
 
-\begin{itemize}[leftmargin=*]
-    \item \textbf{Intervention 1 — Nullify $b_Q$ (query bias is necessary).} Set $b_Q$ to zero; the sink substantially diminishes (\cref{fig:intervention1}), showing that $b_Q$ is necessary for the large first-token contribution (for all layers, see Appendix \ref{app:intervention1}).
-    \item \textbf{Intervention 2 — Replace $\mathrm{EPE}_1$ (specificity of the positional signal).} Swap $\mathrm{EPE}_1$ with another position’s EPE; the first-position sink disappears (\cref{fig:intervention2}), indicating that $\mathrm{EPE}_1$ is critical to induce a sink (for all layers, see Appendix \ref{app:intervention2}).
-    \item \textbf{Intervention 3 — Moving $\mathrm{EPE}_1$ induces a sink at the new token (sufficiency).} We transplant $\mathrm{EPE}_1$ from position 1 to position 2 (and give position 1 a different EPE). A strong sink forms at position 2 (\cref{fig:intervention3}), demonstrating that $\mathrm{EPE}_1$ is sufficient to elicit a sink at the new location. (for all layers, see Appendix \ref{app:intervention3}).
-    \item \textbf{Intervention 4 — BOS token does not drive the sink.} We zero the BOS token embedding before adding positional signals. The sink persists (\cref{fig:intervention4}), ruling out the embedding of the BOS token as a main driver of the sink. (for all layers, see Appendix \ref{app:intervention4}).
-    \item \textbf{Intervention 5 — Zero $W_k$ at bias-projection coordinates (structural pathway is necessary).} Zero $W_k$ columns at massive-$\mathrm{EPE}_1$ coordinates compared to zeroing $W_k$ columns at random coordinates; only the prior case substantially reduces the sink (\cref{fig:intervention5}, \cref{fig:intervention5_2}), confirming that these specific coordinates are core drivers for translating $\mathrm{EPE}_1$ into the attention bias. (for all layers, see Appendix \ref{app:intervention5} and \ref{app:intervention5_2}).
-\end{itemize}
+
 
 \begin{figure*}[t!]
   \centering
@@ -219,7 +213,13 @@ interventions on each mechanism component during forward passes to test necessit
   \label{fig:interventions_comparison}
 \end{figure*}
 
-
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Intervention 1 — Nullify $b_Q$ (query bias is necessary).} Set $b_Q$ to zero; the sink substantially diminishes (\cref{fig:intervention1}), showing that $b_Q$ is necessary for the large first-token contribution (for all layers, see Appendix \ref{app:intervention1}).
+  \item \textbf{Intervention 2 — Replace $\mathrm{EPE}_1$ (specificity of the positional signal).} Swap $\mathrm{EPE}_1$ with another position’s EPE; the first-position sink disappears (\cref{fig:intervention2}), indicating that $\mathrm{EPE}_1$ is critical to induce a sink (for all layers, see Appendix \ref{app:intervention2}).
+  \item \textbf{Intervention 3 — Moving $\mathrm{EPE}_1$ induces a sink at the new token (sufficiency).} We transplant $\mathrm{EPE}_1$ from position 1 to position 2 (and give position 1 a different EPE). A strong sink forms at position 2 (\cref{fig:intervention3}), demonstrating that $\mathrm{EPE}_1$ is sufficient to elicit a sink at the new location. (for all layers, see Appendix \ref{app:intervention3}).
+  \item \textbf{Intervention 4 — BOS token does not drive the sink.} We zero the BOS token embedding before adding positional signals. The sink persists (\cref{fig:intervention4}), ruling out the embedding of the BOS token as a main driver of the sink. (for all layers, see Appendix \ref{app:intervention4}).
+  \item \textbf{Intervention 5 — Zero $W_k$ at bias-projection coordinates (structural pathway is necessary).} Zero $W_k$ columns at massive-$\mathrm{EPE}_1$ coordinates compared to zeroing $W_k$ columns at random coordinates; only the prior case substantially reduces the sink (\cref{fig:intervention5}, \cref{fig:intervention5_2}), confirming that these specific coordinates are core drivers for translating $\mathrm{EPE}_1$ into the attention bias. (for all layers, see Appendix \ref{app:intervention5} and \ref{app:intervention5_2}).
+\end{itemize}
 
 \section{Conclusions}
 Attention sinks are not universal. In architectures with learned query biases and absolute positional encodings, our analyses and interventions indicate that the sink is implemented through an interaction between (i) a learned query bias, (ii) the first-layer transformation of positional information that yields a high-magnitude effective positional encoding at the first position (EPE$_1$), and (iii) structure in the key projection aligned with the large-magnitude coordinates of EPE$_1$. Together with observations of sinks in models without these components (e.g with alternative positional schemes (e.g., RoPE or ALiBi; \YRM{cite}) or without a learned query bias \YRM{cite}), these results argue against a single universal mechanism for attention sink
