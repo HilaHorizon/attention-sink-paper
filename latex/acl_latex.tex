@@ -36,7 +36,9 @@
 \Backlogcommentstrue
 % \YRMBacklogcommentsfalse
 \Resolvedcommentstrue
-
+\YRMcommentsfalse
+\Backlogcommentsfalse
+\Resolvedcommentsfalse
 
 \newcommand{\YRM}[1]{\ifYRMcomments\textcolor{red}{[YRM: #1]}\fi}
 
@@ -78,7 +80,10 @@
 By design, the self-attention mechanism has no inherent sense of token order. To address this, Transformers must be augmented with positional information. The original Transformer used fixed sinusoidal embeddings \cite{vaswani2017attention}. Many models in the GPT family, including the GPT-2 model we investigate, use learned absolute positional embeddings - a vector for each position that is added to the token embedding at input. More recent architectures have introduced alternative methods, such as the LLaMA architecture \cite{touvron2023llama2} which utilizes Rotary Positional Embeddings (RoPE) \cite{su2021roformer}, and Attention with Linear Biases (ALiBi) \cite{press2021train}, which is a key feature in models like BLOOM \cite{bigscience2023bloom}.
 
 \subsection{The Attention Sink Phenomenon}
-Recent empirical work has identified a curious and robust phenomenon in auto-regressive language models termed the ``attention sink'' \cite{xiao2023efficient}. This refers to the tendency of models to allocate a significant portion of their attention to the very first token(s) in a sequence, even when these tokens are not semantically important. As \cite{gu2025when} demonstrate, this phenomenon is not an anomaly but emerges consistently during pre-training. Some studies have found the attention sink could have a negative impact on the achievable accuracy of LLMs \cite{Yu2024Unveiling}. Some models, such as Mamba-based models as \citet{endy-etal-2025-mamba} shows, don't exhibit attention sink. \Resolved{When working on this part, please make sure to cite my paper (attention knockout), it related to this paper because there we show that Mamba-based models don't have an attention sink so we can cite it as papers showing that some architecture don't suffer from attention sink (it's common practice  to forcibly cite yourself haha)}
+Recent empirical work has identified a curious and robust phenomenon in auto-regressive language models termed the ``attention sink'' \citep{xiao2023efficient}. This refers to the tendency of models to allocate a significant portion of their attention to token(s) even when they are not semantically important, typically the first one(s) in the sequence.
+As \citet{gu2025when} demonstrate, this phenomenon is not an anomaly but emerges consistently during pre-training. Some studies have found the attention sink could have a negative impact on the achievable accuracy of LLMs \cite{Yu2024Unveiling}. 
+A similar phenomenon has been observed in LMMs (Large Multimodal Models) \cite{Kang2025See} and ViTs (Visual transformers) \citet{Feng2025EDIT:}. \citet {Barbero2025Why} argue that attention sinks are a
+way for LLMs to avoid over-mixing and representational collapse. The main mechanism for attention sink that has been identified so far is the softmax normalization (\citet{xiao2023efficient}, \citet{gu2025when}, \citet{Zuhri2025SoftpickNA}).
 
 \subsection{Massive Activations}
 The phenomenon of \emph{massive activations}—where a tiny subset of coordinates exhibit orders-of-magnitude larger activations—has been identified and characterized across a variety of LLMs (\cite{sun2024massive}, \cite{lindnielsen2024spectral}, \cite{lin2024duquant}). Crucially, these massive activations often appear at specific token positions, most notably the very first token of a sequence. \cite{sun2024massive} hypothesize that these activations function as bias terms that are learned by the model. A similar phenomenon has been observed in LMMs (Large Multimodal Models) \cite{Kang2025See}.
@@ -241,8 +246,6 @@ We provide a post-hoc, static analysis of a trained checkpoint. We do not track 
 Our contribution is mechanistic: we explain \emph{how} an attention sink can be implemented in the studied architecture. We do not claim a definitive \emph{functional} rationale for \emph{why} such a sink is beneficial or harmful across tasks. Establishing the downstream utility or cost of the sink, and the conditions under which it is selected by optimization, is left for future work.
 
 
-
-% Use ACL bibliography style / file
 \bibliographystyle{acl_natbib}
 \bibliography{latex/custom}
 
@@ -317,11 +320,11 @@ Our contribution is mechanistic: we explain \emph{how} an attention sink can be 
     \includegraphics[width=1.4\columnwidth]{figures/obs1_appendix/obs1_layer12.png}
     \caption{layer 12}
   \end{subfigure}\hfill
-    \vspace{2mm}
-  \caption{Distribution of bias terms $\Delta_j^$ across positions for all of the layers}
+  \vspace{2mm}
+  \caption{Distribution of bias terms $\Delta_j$ across positions for all of the layers}
 \end{figure*}
 
-\section{}\label{app:epe_bias}
+\section{EPE Bias}\label{app:epe_bias}
 
 \begin{figure*}[t]
   \begin{subfigure}[t]{0.24\textwidth}
