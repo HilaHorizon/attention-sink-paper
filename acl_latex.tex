@@ -35,12 +35,12 @@
 \Backlogcommentsfalse
 
 
-%\YRMcommentstrue % set to \YRMcommentsfalse to hide comments
-%\Resolvedcommentstrue
+\YRMcommentstrue % set to \YRMcommentsfalse to hide comments
+\Resolvedcommentstrue
 % \Backlogcommentstrue
 
-\YRMcommentsfalse
-\Resolvedcommentsfalse
+% \YRMcommentsfalse
+% \Resolvedcommentsfalse
 
 \newcommand{\YTODO}[1]{\ifYRMcomments\textcolor{pink}{[TODO for Yuval: #1]}\fi}
 
@@ -71,59 +71,49 @@
   Transformers commonly exhibit an attention sink: disproportionately high attention to the first position. We study this behavior in GPT-2–style models with learned query biases and absolute positional embeddings. Combining analysis with targeted interventions, we find that the sink arises from the interaction among (i) a learned query bias, (ii) the first-layer transformation of the positional encoding and (iii) structure in the key projection. Together with observations of sinks in models without query biases or absolute positional embeddings (e.g., RoPE or ALiBi), this indicates that attention sinks do not arise from a single universal mechanism but instead depend on architecture. These findings inform mitigation of attention sink, and motivate broader investigation of sink mechanisms across different architectures.
 \end{abstract}
 
-\YTODO{Write an intro.}
+\section{Introduction}\label{sec:intro}
 
-\section{Related Work}
-\YRM{I didn't look at this part yet, waiting for you to finish it fist :) } 
+Transformers routinely display an \emph{attention sink}: a persistent tendency to allocate disproportionate attention mass to early (often first) positions independent of semantic content \citep{xiao2023efficient,gu2025when}. The effect is robust across many language and vision architectures. It has been observed across training stages and hyperparameters \citep{gu2025when,Guo2024ActiveDormantAH}, across model families and datasets \citep{xiao2023efficient}, and under diverse positional encodings—including absolute and learnable embeddings, ALiBi, RoPE, and even no explicit positional encodings \citep{press2021train,su2021roformer,Irie2019LanguageMW,gu2025when}. Similar sink-like patterns have also been reported in large multimodal systems and vision transformers \citep{Kang2025See,wang2025mirage,Feng2025EDIT:}. Together, these results indicate a robust, recurring phenomenon rather than a quirk of any single training recipe.\footnote{Some non-transformer architectures have been reported to have little to no sink \citep{endy-etal-2025-mamba}.}
 
-\YRM{As mentioned, this needs to be improved - By citing more, making this more concise (as concise as possible while including really vital info, and adding more in appendix if needed, like we did in our attention knockout paper )}Our investigation into the attention sink's origins builds upon four key areas of Transformer research: the methods for encoding positional information, the phenomenon of attention sink, and the recent discovery of massive activations functioning as implicit biases.
+The practical stakes are significant. Attention sinks can reduce effective context use, lower accuracy and calibration \citep{Yu2024Unveiling,Guo2024ActiveDormantAH}, aggravate numerical error and hinder quantization \citep{sun2024massive,lin2024duquant}, and obscure interpretability by dominating attention maps \citep{Guo2024ActiveDormantAH}. Understanding when sinks arise and how to control them is therefore directly relevant for model performance and interpretability.
 
-\subsection{Positional Encoding in Transformers}
-By design, the self-attention mechanism has no inherent sense of token order. To address this, Transformers must be augmented with positional information. The original Transformer used fixed sinusoidal embeddings \citep{vaswani2017attention}. Many models in the GPT family, including the GPT-2 model we investigate, use learned absolute positional embeddings - a vector for each position that is added to the token embedding at input. More recent architectures have introduced alternative methods, such as the LLaMA architecture \citep{touvron2023llama2} which utilizes Rotary Positional Embeddings (RoPE) \citep{su2021roformer}, and Attention with Linear Biases (ALiBi) \citep{press2021train}, which is a key feature in models like BLOOM \citep{bigscience2023bloom}.
+In this work we study the sink mechanistically in a concrete, widely used sub-architecture: GPT-2–style Transformers with learned query biases and absolute positional embeddings \citep{Radford2018ImprovingLU}. We combine descriptive measurements with targeted causal interventions, moving beyond observation to controlled tests of necessity and sufficiency. Concretely, we tie the first-token sink in this setting to three interacting components: a learned query bias, the first layer’s transformation of positional information (captured by an effective positional encoding, EPE), and structure in the key projection that aligns with the dominant coordinates of that transformed positional signal. To turn correlations into causality, we pair each measurement with a targeted intervention and show the sink weakens, disappears, or moves accordingly; additionally, when alternative explanations are plausible, we ablate them and find the sink persists, isolating the causal pathway.
 
-\subsection{The Attention Sink Phenomenon}
-Recent empirical work has identified a curious and robust phenomenon in auto-regressive language models termed the ``attention sink'' \citep{xiao2023efficient}. This refers to the tendency of models to allocate a significant portion of their attention to token(s) even when they are not semantically important, typically the first one(s) in the sequence. As \citet{gu2025when} demonstrate, this phenomenon is not an anomaly but emerges consistently during pre-training \YRM{This is possibly the most important part of the RW. This should be with much more details and more citations, so saying specially that he demonstrated this in model without query bias and absolute positional encoding}. Some studies have found the attention sink could have a negative impact on the achievable accuracy of LLMs \cite{Yu2024Unveiling} \YRM{Can you add a bit of details here? Citing a lot of papers that write about negative impact, even if they only say so in a sentence, would be great}. A similar phenomenon has been observed in LMMs (Large Multimodal Models) (\citet{Kang2025See}, \cite{wang2025mirage}) and ViTs (Visual transformers) \cite{Feng2025EDIT:}. \citet {Barbero2025Why} argue that attention sinks are a
-way for LLMs to avoid over-mixing and representational collapse. The main mechanism for attention sink that has been identified so far is the softmax normalization (\citet{xiao2023efficient}, \citet{gu2025when}, \citet{Zuhri2025SoftpickNA}). Some models, such as Mamba-based models as \citet{endy-etal-2025-mamba} shows, don't exhibit attention sink.
-
-\subsection{Massive Activations}
-The phenomenon of \emph{massive activations}—where a tiny subset of coordinates exhibit orders-of-magnitude larger activations—has been identified and characterized across a variety of LLMs (\citet{sun2024massive}, \citet{lindnielsen2024spectral}, \citet{lin2024duquant}) and LMMs \cite{Kang2025See}. Crucially, these massive activations often appear at specific token positions, most notably the very first token of a sequence. \citep{sun2024massive} hypothesize that these activations function as bias terms that are learned by the model. 
-
-
+Finally, we situate these findings within the broader ecosystem. Many popular architectures do not include the components our GPT-2 analysis identifies as central in this setting: they omit learned attention biases and use alternative positional schemes—RoPE or ALiBi—instead of absolute embeddings, or even omit explicit positional encodings (NoPE) \citep{touvron2023llama2,Chowdhery2022PaLMSL,su2021roformer,press2021train,Irie2019LanguageMW}. Yet such models also robustly exhibit attention sinks \citep{gu2025when,xiao2023efficient}. Thus, the GPT-2 mechanism we uncover cannot account for their sinks. The behavior is robust across families, but the implementation pathway depends on architecture. This has two implications: first, attention sinks may play a fundamental computational role that arises irrespective of particular architectural choices. Second, effective mitigation should be mechanism-aware rather than a one-size-fits-all approach.
 
 \section{Preliminaries}
-\YTODO{Write about the input (the sentence we are using)}
 \subsection{Attention mechanism}
-Let $X^{(i)}=[x_1^{(i)},\ldots,x_n^{(i)}]$ denote the input to attention layer $i$, where $x_t^{(i)}\in\mathbb{R}^{d}$ is the representation for position $t$ (after LayerNorm). We denote projection matrices and biases by $W_q^{(i)},W_k^{(i)},W_v^{(i)}\in\mathbb{R}^{d\times d}$ and $b_Q^{(i)},b_K^{(i)},b_V^{(i)}\in\mathbb{R}^{d}$. Queries, keys, and values are: $q_t^{(i)}=W_q^{(i)}x_t^{(i)} + b_Q^{(i)}$, $k_t^{(i)}=W_k^{(i)}x_t^{(i)} + b_K^{(i)}$, and $v_t^{(i)}=W_v^{(i)}x_t^{(i)} + b_V^{(i)}$. Some architectures include biases \cite{vaswani2017attention}, others omit them \cite{touvron2023llama2}. \YRM{Verify and add more specific citations for bias usage patterns}
+Let $X^{(i)}=[x_1^{(i)},\ldots,x_n^{(i)}]$ denote the input to attention layer $i$, where $x_t^{(i)}\in\mathbb{R}^{d}$ is the representation for position $t$ (after LayerNorm). We denote projection matrices and biases by $W_q^{(i)},W_k^{(i)},W_v^{(i)}\in\mathbb{R}^{d\times d}$ and $b_Q^{(i)},b_K^{(i)},b_V^{(i)}\in\mathbb{R}^{d}$. Queries, keys, and values are: $q_t^{(i)}=x_t^{(i)}W_q^{(i)} + b_Q^{(i)}$, $k_t^{(i)}=x_t^{(i)}W_k^{(i)} + b_K^{(i)}$, and $v_t^{(i)}=x_t^{(i)}W_v^{(i)} + b_V^{(i)}$. Some architectures include biases (\citet{Zhang2022OPTOP}, \citet{Yang2024Qwen2}, \citet{Zeng2024ChatGLMAF}) , others omit them (\citet{touvron2023llama2}, \citet{Dehghani2023ScalingVT}, \cite{Chowdhery2022PaLMSL}).
 
-For autoregressive generation, attention weights are $\alpha_{t j}=\mathrm{softmax}_j\!\big((q_t^{(i)})^\top k_j^{(i)} / \sqrt{d}\big)$ \YRM{I changed the transpose here to be on the Q, please make sure that OK (this is better for later). Make sure this changes fit all other places/notations)}where the softmax is over valid positions $j \le t$. Multi-head attention divides the feature dimension across $h$ heads, 
-computing attention independently within each head's subspace before 
-concatenating outputs. For simplicity, our experiments treat $W_k$ and $b_Q$ in their original form prior to head-wise reshaping.
+For autoregressive generation, attention weights are $\alpha_{t j}=\mathrm{softmax}_j\!\big(q_t^{(i)} (k_j^{(i)})^\top / \sqrt{d}\big)$ where the softmax is over valid positions $j \le t$. For simplicity, our experiments treat $W_k$ and $b_Q$ in their original form prior to head-wise reshaping.
 
 \subsection{Positional encoding}
-Attention layers are invariant to input permutations, lacking inherent awareness of token order. To address this, Transformers incorporate positional information through various schemes \YRM{Cite all in RW}. We focus on learned absolute positional encodings: a set of trainable vectors $\{p_i\}_{i=1}^{L} \subset \mathbb{R}^{d}$, where $i$ is the token position and $L$ is the sequence length. These are added to token embeddings $e_i$: $x_i^{(0)} = e_i + p_i$.
+Attention layers are invariant to input permutations, lacking inherent awareness of token order. To address this, Transformers incorporate positional information through various schemes (\citet{su2021roformer}, \citet{press2021train}, \citet{Irie2019LanguageMW}). We focus on learned absolute positional encodings: a set of trainable vectors $\{p_i\}_{i=1}^{L} \subset \mathbb{R}^{d}$, where $i$ is the token position and $L$ is the sequence length. These are added to token embeddings $e_i$: $x_i^{(0)} = e_i + p_i$.
 
 \subsubsection{Effective positional encoding (EPE)}
-We define the \emph{effective positional encoding} (EPE) for position $i$ as $\mathrm{EPE}_i = \mathrm{MLP}^{(1)}(p_i) + p_i$, where $\mathrm{MLP}^{(1)}$ denotes the first layer's feed-forward network applied to the raw positional encoding $p_i$, and the residual connection preserves the original positional signal.  We term this ``effective'' because it captures the net positional signal that emerges after the first layer's transformation. Specifically, we observe experimentally that adding $\mathrm{EPE}_i$ to the first layer's output (when no positional encoding was initially provided) produces approximately the same effect as the standard approach of adding $p_i$ before the first layer. This demonstrates that $\mathrm{EPE}_i$ represents the effective contribution of positional information after being processed through the network's initial transformations Experiments demonstrating this can be found in \label{app:epe_exp}).
+We define the \emph{effective positional encoding} (EPE) for position $i$ as $\mathrm{EPE}_i = \mathrm{MLP}^{(1)}(p_i) + p_i$, where $\mathrm{MLP}^{(1)}$ denotes the first layer's feed-forward network applied to the raw positional encoding $p_i$, and the residual connection preserves the original positional signal.  We term this ``effective'' because it captures the net positional signal that emerges after the first layer's transformation. Specifically, we observe experimentally that adding $\mathrm{EPE}_i$ to the first layer's output (when no positional encoding was initially provided) produces approximately the same effect as the standard approach of adding $p_i$ before the first layer. This demonstrates that $\mathrm{EPE}_i$ represents the effective contribution of positional information after being processed through the network's initial transformations Experiments demonstrating this can be found in \cref{app:epe_exp}).
 
 \section{Methodology and Results}
-First, we state the result of our analysis: a description of the mechanism underlying attention sinks in models with learnable query biases and absolute positional encodings. Then, we provide evidence for our hypothesis through experimental analyses and causal interventions.
+First, we state the result of our analysis: a description of the mechanism underlying attention sinks in models with learnable query biases and absolute positional encodings. Then, we provide evidence for our hypothesis through experimental analyses and causal interventions. 
 
-\subsection{Result: Mechanism behind the attention sink}\label{sec:mechanism}
-Consider layer $i$. Before softmax (and scaling), the attention score from source position $t$ to target position $j$ is $s_{t\to j}^{(i)} = (q_t^{(i)})^\top k_j^{(i)}$, with $q_t^{(i)} = W_q^{(i)} x_t^{(i)} + b_Q^{(i)}$ and $k_j^{(i)} = W_k^{(i)} x_j^{(i)} + b_K^{(i)}$. Expanding gives
+Throughout our experiments, we use the sentence "My name is Ozymandias, king of kings: Look on my works, ye Mighty, and despair!" from Percy Bysshe Shelley's poem as input, though our analysis generalizes to any input of similar length.
+
+\subsection{The Mechanism behind Attention Sinks}\label{sec:mechanism}
+Consider layer $i$. Before softmax (and scaling), the attention score from source position $t$ to target position $j$ is $s_{t\to j}^{(i)} = q_t^{(i)} (k_j^{(i)})^\top$, with $q_t^{(i)} =  x_t^{(i)}W_q^{(i)} + b_Q^{(i)}$ and $k_j^{(i)} = x_j^{(i)}W_k^{(i)}  + b_K^{(i)}$. Expanding gives
 \[
 \begin{aligned}
-s_{t\to j}^{(i)} &= (W_q^{(i)} x_t^{(i)})^\top (W_k^{(i)} x_j^{(i)}) + (W_q^{(i)} x_t^{(i)})^\top b_K^{(i)} \\
-&\quad + (b_Q^{(i)})^\top (W_k^{(i)} x_j^{(i)}) + (b_Q^{(i)})^\top b_K^{(i)}.
+s_{t\to j}^{(i)} &= (x_t^{(i)}W_q^{(i)})(x_j^{(i)}W_k^{(i)})^\top  + (x_t^{(i)}W_q^{(i)}) b_K^{(i)^\top} \\
+&\quad + (b_Q^{(i)})(x_j^{(i)}W_k^{(i)})^\top  + (b_Q^{(i)}) b_K^{(i)\top}.
 \end{aligned}
 \]
-The third term, $\Delta_j^{(i)} \triangleq (b_Q^{(i)})^\top W_k^{(i)} x_j^{(i)}$, is a token-specific, source-agnostic shift: it raises or lowers the score for \emph{all} sources $t$ toward the same target $j$. This term represents the projection of token $j$'s representation onto the direction $(b_Q^{(i)})^\top W_k^{(i)}$. We find that this bias term for the first token, $\Delta_1^{(i)}$, is conspicuously large in most deep layers, creating a strong prior to attend to position 1. The underlying reason for the large $\Delta_1^{(i)}$ is the effective positional encoding $\mathrm{EPE}_1$. $\mathrm{EPE}_1$ has very large absolute values on a small set of coordinates (a phenomenon called \textit{massive activations} \YRM{Cite main paper introducing this}) which are exactly those coordinates where $(b_Q^{(i)})^\top W_k^{(i)}$ has the largest magnitude in almost all layers. This co-adaptation enables $\mathrm{EPE}_1$ to dramatically amplify $\Delta_1^{(i)}$, yielding an attention sink at the first position. \Backlog{Can we add a diagram to illustrate this? This sounds time consuming but really really helpful since this passage turned out to be somewhat dense. Let's wait to see how much space we have before doing this}
+The third term, $\Delta_j^{(i)} \triangleq b_Q^{(i)}W_k^{(i)\top} x_j^{(i)\top}$, is a token-specific, source-agnostic shift: it raises or lowers the score for \emph{all} sources $t$ toward the same target $j$. This term represents the projection of token $j$'s representation onto the direction $b_Q^{(i)}W_k^{(i)\top}$. We find that this bias term for the first token, $\Delta_1^{(i)}$, is conspicuously large in most deep layers, creating a strong prior to attend to position 1. The underlying reason for the large $\Delta_1^{(i)}$ is the effective positional encoding $\mathrm{EPE}_1$. $\mathrm{EPE}_1$ has very large absolute values on a small set of coordinates (a phenomenon called \textit{massive activations} \cite{sun2024massive}) which are exactly those coordinates where $b_Q^{(i)}W_k^{(i)\top}$ has the largest magnitude in almost all layers. This co-adaptation enables $\mathrm{EPE}_1$ to dramatically amplify $\Delta_1^{(i)}$, yielding an attention sink at the first position. \Backlog{Can we add a diagram to illustrate this? This sounds time consuming but really really helpful since this passage turned out to be somewhat dense. Let's wait to see how much space we have before doing this}
 
 \subsection{Empirical Validation}
-We validate our proposed mechanism through three complementary analyses on GPT-2, followed by causal interventions that confirm the necessity of each component described in \cref{sec:mechanism}. In \cref{sec:delta_analysis} we show that $\Delta_1^{(i)}$ is conspicuously large relative to other positions across multiple layers. We then investigate its underlying cause and show in \cref{sec:epe_alignment} that $W_k^{(i)}\mathrm{EPE}_1$ exhibits strong alignment with vector $b_Q^{(i)}$ in deep layers. In \cref{sec:wk_structure} we establish that $\mathrm{EPE}_1$ exhibits massive activations precisely at coordinates where the bias projection $b_Q^{(i)} W_k^{(i)}$ has high magnitude. Finally, in \cref{sec:interventions} we use causal interventions to verify that disrupting any component abolishes the sink while transplanting components transfers it to new positions.
+We validate our proposed mechanism through three complementary analyses on GPT-2, followed by causal interventions that confirm the necessity of each component described in \cref{sec:mechanism}. In \cref{sec:delta_analysis} we show that $\Delta_1^{(i)}$ is conspicuously large relative to other positions across multiple layers. We then investigate its underlying cause and show in \cref{sec:epe_alignment} that $\mathrm{EPE}_1W_k^{(i)}$ exhibits strong alignment with vector $b_Q^{(i)}$ in deep layers. In \cref{sec:wk_structure} we establish that $\mathrm{EPE}_1$ exhibits massive activations precisely at coordinates where the bias projection $b_Q^{(i)} W_k^{(i)\top}$ has high magnitude. Finally, in \cref{sec:interventions} we use causal interventions to verify that disrupting any component abolishes the sink while transplanting components transfers it to new positions.
 
 \subsubsection{Bias Term Magnitude Analysis}
 \label{sec:delta_analysis}
-First, We verify that $\Delta_j^{(i)} = (b_Q^{(i)})^\top W_k^{(i)} x_j^{(i)}$ is anomalously large for position 1. Histograms of $\Delta_j^{(i)}$ across positions $j$ show $\Delta_1^{(i)}$ as a consistent distinct outlier. \Cref{fig:obs2_layer10} shows this for layer 10, where $\Delta_1^{(i)}$ substantially exceeds other positions (results across all layers are in Appendix \ref{app:bias_term}).
+First, We verify that $\Delta_j^{(i)} \triangleq b_Q^{(i)}W_k^{(i)\top} x_j^{(i)\top}$ is anomalously large for position 1. Histograms of $\Delta_j^{(i)}$ across positions $j$ show $\Delta_1^{(i)}$ as a consistent distinct outlier. \Cref{fig:obs2_layer10} shows this for layer 10, where $\Delta_1^{(i)}$ substantially exceeds other positions (results across all layers are in Appendix \ref{app:bias_term}).
 
 \begin{figure}[t]
   \includegraphics[width=\columnwidth]{figures/obs1_layer10.png}
@@ -133,19 +123,19 @@ First, We verify that $\Delta_j^{(i)} = (b_Q^{(i)})^\top W_k^{(i)} x_j^{(i)}$ is
 
 \subsubsection{EPE-Bias Projection Alignment}
 \label{sec:epe_alignment}
-Having established the magnitude of $\Delta_1^{(i)}$, we investigate its underlying cause. Since $x_1^{(i)}$ contains both token and positional information, it remains to disentangle which of the two is responsible for the large $\Delta_1^{(i)}$. To that end, we examine alignment between $W_k^{(i)}\mathrm{EPE}$ and query bias $b_Q^{(i)}$. \Cref{fig:obs1_layer10} shows $W_k^{(10)}\mathrm{EPE}_1$ strongly aligns with $b_Q^{(10)}$, while other positions cluster near zero (full results for all layers are in Appendix \ref{app:epe_bias}).\Backlog{If we can also do that for $x_1^{(i)}-\mathrm{EPE}_1$ and show that this isn't aligned that would be great for this paragraph (we can put it in the appendix and just write it casually. This is not top priority at all.)}
+Having established the magnitude of $\Delta_1^{(i)}$, we investigate its underlying cause. Since $x_1^{(i)}$ contains both token and positional information, it remains to disentangle which of the two is responsible for the large $\Delta_1^{(i)}$. To that end, we examine alignment between $\mathrm{EPE}W_k^{(i)}$ and query bias $b_Q^{(i)}$. \Cref{fig:obs1_layer10} shows $\mathrm{EPE}_1W_k^{(10)}$ strongly aligns with $b_Q^{(10)}$, while other positions cluster near zero (full results for all layers are in Appendix \ref{app:epe_bias}).\Backlog{If we can also do that for $x_1^{(i)}-\mathrm{EPE}_1$ and show that this isn't aligned that would be great for this paragraph (we can put it in the appendix and just write it casually. This is not top priority at all.)}
 
 \begin{figure}[t]
   \includegraphics[width=\columnwidth]{figures/obs2_layer10.png}
-  \caption{Cosine similarity between query bias $b_Q^{(10)}$ and $W_k^{(10)}\mathrm{EPE}$. $W_k^{(10)}\mathrm{EPE}_1$ (red) shows strong positive alignment ($\approx 0.7$), while other positions (blue) cluster near -0.2.}
+  \caption{Cosine similarity between query bias $b_Q^{(10)}$ and $\mathrm{EPE}W_k^{(10)}$. $\mathrm{EPE}_1W_k^{(10)}$ (red) shows strong positive alignment ($\approx 0.7$), while other positions (blue) cluster near -0.2.}
   \label{fig:obs2_layer10}
 \end{figure}
 
 \subsubsection{Coordinate-Level Structural Analysis}
 \label{sec:wk_structure}
-Massive coordinates of $\mathrm{EPE}_1$ should coincide with coordinates favored by the bias projection. Let $\gamma^{(i)}=(W_k^{(i)})^\top b_Q^{(i)}\in\mathbb{R}^d$; its entry $\gamma^{(i)}[d]$ measures coordinate $d$'s contribution to source-agnostic shift $\Delta_j^{(i)}$. We identify coordinates with conspicuously large absolute values in 
+Massive coordinates of $\mathrm{EPE}_1$ should coincide with coordinates favored by the bias projection. Let $\gamma^{(i)}=b_Q^{(i)}W_k^{(i)\top}\in\mathbb{R}^d$; its entry $\gamma^{(i)}[d]$ measures coordinate $d$'s contribution to source-agnostic shift $\Delta_j^{(i)}$. We identify coordinates with conspicuously large absolute values in 
 $\mathrm{EPE}_1$ (see Appendix~\ref{app:massive_activations_in_ppe} for 
-details). For each such coordinate $d$, we compare $|\gamma^{(i)}[d]|$ against other columns. \Cref{obs3_table} shows massive coordinates ($d{=}138,447$) substantially exceed baseline, confirming $\mathrm{EPE}_1$ is large exactly where bias projection is large (full results for all layers are in Appendix \ref{app:coor_align}).
+details). For each such coordinate $d$, we compare $|\gamma^{(i)}[d]|$ against other rows. \Cref{obs3_table} shows massive coordinates ($d{=}138,447$) substantially exceed baseline, confirming $\mathrm{EPE}_1$ is large exactly where bias projection is large (full results for all layers are in Appendix \ref{app:coor_align}).
 
 \begin{table}[t]
   \centering
@@ -158,7 +148,7 @@ details). For each such coordinate $d$, we compare $|\gamma^{(i)}[d]|$ against o
     layer 11  &   1.403$\pm$4.002   &    27.547   &    27.691        \\
     \hline
   \end{tabular}
-  \caption{$\gamma^{(i)}=(W_k^{(i)})^\top b_Q^{(i)}$ at coordinates where $\mathrm{EPE}_1$ has massive activations (dims 138, 447) versus the baseline mean $\pm$ two standard deviations across all coordinates. The massive-$\mathrm{EPE}_1$ coordinates consistently exceed the baseline by wide margins, demonstrating that $\mathrm{EPE}_1$ is irregularly large precisely where the bias projection has strong influence.}
+  \caption{$\gamma^{(i)}=b_Q^{(i)}W_k^{(i)\top}$ at coordinates where $\mathrm{EPE}_1$ has massive activations (dims 138, 447) versus the baseline mean $\pm$ two standard deviations across all coordinates. The massive-$\mathrm{EPE}_1$ coordinates consistently exceed the baseline by wide margins, demonstrating that $\mathrm{EPE}_1$ is irregularly large precisely where the bias projection has strong influence.}
   \label{obs3_table}
 \end{table}
 
@@ -198,17 +188,17 @@ details). For each such coordinate $d$, we compare $|\gamma^{(i)}[d]|$ against o
   \begin{subfigure}[t]{0.22\textwidth}
     \centering
     \includegraphics[width=0.85\columnwidth]{figures/obs4_intervention5.png}
-    \caption{nullify massive activation columns of Wk}
+    \caption{nullify massive activation rows of Wk}
     \label{fig:intervention5}
   \end{subfigure}
     \begin{subfigure}[t]{0.22\textwidth}
     \centering
     \includegraphics[width=0.85\columnwidth]{figures/obs4_intervention5_2.png}
-    \caption{nullify random columns of Wk}
+    \caption{nullify random rows of Wk}
     \label{fig:intervention5_2}
   \end{subfigure}
 
-  \caption{Comparison of attention maps under different interventions. (a) no intervention; (b) intervention 1: nullify $b_Q$; (c) intervention 2: remove the learned EPE at position 1 and add a different EPE (the second); (d) intervention 3: transplant the learned EPE to another position (the second). (e) intervention 4: nullify BOS token embedding. intervention 5: (f) nullify massive activation columns of Wk. (g) nullify random columns of Wk.}
+  \caption{Comparison of attention maps under different interventions. (a) no intervention; (b) intervention 1: nullify $b_Q$; (c) intervention 2: remove the learned EPE at position 1 and add a different EPE (the second); (d) intervention 3: transplant the learned EPE to another position (the second). (e) intervention 4: nullify BOS token embedding. intervention 5: (f) nullify massive activation rows of Wk. (g) nullify random rows of Wk.}
   \label{fig:interventions_comparison}
 \end{figure*}
 
@@ -225,11 +215,11 @@ interventions on each mechanism component during forward passes to test necessit
   \item \textbf{Intervention 2 — Replace $\mathrm{EPE}_1$ (specificity of the positional signal).} Swap $\mathrm{EPE}_1$ with another position’s EPE; the first-position sink disappears (\cref{fig:intervention2}), indicating that $\mathrm{EPE}_1$ is critical to induce a sink.
   \item \textbf{Intervention 3 — Moving $\mathrm{EPE}_1$ induces a sink at the new token (sufficiency).} We transplant $\mathrm{EPE}_1$ from position 1 to position 2 (and give position 1 a different EPE). A strong sink forms at position 2 (\cref{fig:intervention3}), demonstrating that $\mathrm{EPE}_1$ is sufficient to elicit a sink at the new location.
   \item \textbf{Intervention 4 — BOS token does not drive the sink.} We zero the BOS token embedding before adding positional signals. The sink persists (\cref{fig:intervention4}), ruling out the embedding of the BOS token as a main driver of the sink.
-  \item \textbf{Intervention 5 — Zero $W_k$ at bias-projection coordinates (structural pathway is necessary).} Zero $W_k$ columns at massive-$\mathrm{EPE}_1$ coordinates compared to zeroing $W_k$ columns at random coordinates; only the prior case substantially reduces the sink (\cref{fig:intervention5}, \cref{fig:intervention5_2}), confirming that these specific coordinates are core drivers for translating $\mathrm{EPE}_1$ into the attention bias.
+  \item \textbf{Intervention 5 — Zero $W_k$ at bias-projection coordinates (structural pathway is necessary).} Zero $W_k$ rows at massive-$\mathrm{EPE}_1$ coordinates compared to zeroing $W_k$ rows at random coordinates; only the prior case substantially reduces the sink (\cref{fig:intervention5}, \cref{fig:intervention5_2}), confirming that these specific coordinates are core drivers for translating $\mathrm{EPE}_1$ into the attention bias.
 \end{itemize}
 
 \section{Conclusions}
-Attention sinks are a robust emergent behavior that appears across a wide range of Transformer architectures and modalities \YRM{cite all relevant papers from RW}, but the mechanisms behind them differ across architectures. In the GPT-2–style sub-architecture we studied, we identify a concrete implementation pathway: an interaction between (i) a learned query bias, (ii) the first-layer transformation of positional information, and (iii) structure in the key projection. Crucially, this circuit cannot account for sinks in architectures that lack these components—for example, models without learned query biases \YRM{cite} or models using alternative positional schemes such as RoPE or ALiBi \YRM{cite both}, all of which have been shown to exhibit attention sinks \YRM{cite all relevant papers from RW}. This implies that while attention sinks are robust as a phenomenon, they are not governed by a single universal mechanism.
+Attention sinks are a robust emergent behavior that appears across a wide range of Transformer architectures and modalities, but the mechanisms behind them differ across architectures. In the GPT-2–style sub-architecture we studied, we identify a concrete implementation pathway: an interaction between (i) a learned query bias, (ii) the first-layer transformation of positional information, and (iii) structure in the key projection. Crucially, this circuit cannot account for sinks in architectures that lack these components—for example, models without learned query biases or models using alternative positional schemes such as RoPE or ALiBi (or even no positional encodings), all of which have been shown to exhibit attention sinks. This implies that while attention sinks are robust as a phenomenon, they are not governed by a single universal mechanism.
 
 \paragraph{Implications}
 The lack of a single universal mechanism reveals attention sinks as an optimization-friendly attractor: when multiple representational pathways exist, training reliably discovers circuits that implement the sink behavior. This has important implications for both understanding and controlling these phenomena. First, it suggests that attention sinks may serve a fundamental computational role that emerges regardless of specific architectural choices. Second, it indicates that effective mitigation strategies must be mechanism-aware rather than one-size-fits-all. Naive interventions targeting individual components (e.g., shrinking query biases) will likely fail, as optimization can compensate through alternative pathways. Instead, successful approaches must either address the underlying computational pressures that drive sink formation, or develop architecture-specific interventions tailored to each mechanism. 
@@ -265,7 +255,7 @@ In this section, we illustrate that $\mathrm{EPE}_i$ roughly captures the net po
 
 \subsection{Bias Term Magnitude Across All Layers}\label{app:bias_term}
 
-This section reproduces the bias-term magnitude analysis from \cref{sec:delta_analysis} across all layers: we plot the distribution of $\Delta_j^{(i)}=(b_Q^{(i)})^\top W_k^{(i)} x_j^{(i)}$ across positions for each layer (cf. \cref{fig:obs1_layer10}). In most layers, the first-position term $\Delta_1^{(i)}$ is a conspicuous outlier, indicating a strong prior to attend to position 1 (see \Cref{fig:appendix_obs1_all_layers}).
+This section reproduces the bias-term magnitude analysis from \cref{sec:delta_analysis} across all layers: we plot the distribution of $\Delta_j^{(i)} \triangleq b_Q^{(i)}W_k^{(i)\top} x_j^{(i)\top}$, across positions for each layer (cf. \cref{fig:obs1_layer10}). In most layers, the first-position term $\Delta_1^{(i)}$ is a conspicuous outlier, indicating a strong prior to attend to position 1 (see \Cref{fig:appendix_obs1_all_layers}).
 
 \begin{figure*}[t]
   \begin{subfigure}[t]{0.24\textwidth}
@@ -341,7 +331,7 @@ This section reproduces the bias-term magnitude analysis from \cref{sec:delta_an
 
 \subsection{EPE-Bias Alignment Across All Layers}\label{app:epe_bias}
 
-This section repeats the alignment analysis from \cref{sec:epe_alignment}: for each layer $i$ and position $j$ we compute $\cos\big(b_Q^{(i)},\, W_k^{(i)}\mathrm{EPE}_j\big)$, highlighting position 1. In most layers, position 1 shows strong positive alignment while other positions do not (see \Cref{fig:appendix_obs2_all_layers}).
+This section repeats the alignment analysis from \cref{sec:epe_alignment}: for each layer $i$ and position $j$ we compute $\cos\big(b_Q^{(i)},\, \mathrm{EPE}_jW_k^{(i)}\big)$, highlighting position 1. In most layers, position 1 shows strong positive alignment while other positions do not (see \Cref{fig:appendix_obs2_all_layers}).
 
 \begin{figure*}[t]
   \begin{subfigure}[t]{0.24\textwidth}
@@ -412,7 +402,7 @@ This section repeats the alignment analysis from \cref{sec:epe_alignment}: for e
   \end{subfigure}\hfill
     \vspace{2mm}
 
-  \caption{Cosine similarity between the query bias and EPE-projected keys across layers and positions (replicating \cref{fig:obs2_layer10}). For each layer $i$ and position $j$, we plot $\cos\big(b_Q^{(i)},\, W_k^{(i)}\mathrm{EPE}_j\big)$. Red marks position $j{=}1$; blue marks all other positions. Position 1 shows strong positive alignment while other positions do not, indicating that $W_k^{(i)}\mathrm{EPE}_1$ is specifically aligned with $b_Q^{(i)}$.}
+  \caption{Cosine similarity between the query bias and EPE-projected keys across layers and positions (replicating \cref{fig:obs2_layer10}). For each layer $i$ and position $j$, we plot $\cos\big(b_Q^{(i)},\, \mathrm{EPE}_jW_k^{(i)}\big)$. Red marks position $j{=}1$; blue marks all other positions. Position 1 shows strong positive alignment while other positions do not, indicating that $\mathrm{EPE}_1W_k^{(i)}$ is specifically aligned with $b_Q^{(i)}$.}
   \label{fig:appendix_obs2_all_layers}
 \end{figure*}
 
@@ -428,7 +418,7 @@ This section explains how we identify coordinates with unusually large absolute 
 
 \subsection{Coordinate-Level Alignment Across All Layers} \label{app:coor_align}
 
-This section tabulates $\gamma^{(i)}=(W_k^{(i)})^\top b_Q^{(i)}$ at coordinates where $|\mathrm{EPE}_1|$ is conspicuously large, mirroring the coordinate-level analysis in \cref{sec:wk_structure}. Values are compared against the baseline mean $\pm$ two standard deviations across all coordinates (see \Cref{tab:appendix_coor_align}).
+This section tabulates $\gamma^{(i)}=b_Q^{(i)}W_k^{(i)\top}$ at coordinates where $|\mathrm{EPE}_1|$ is conspicuously large, mirroring the coordinate-level analysis in \cref{sec:wk_structure}. Values are compared against the baseline mean $\pm$ two standard deviations across all coordinates (see \Cref{tab:appendix_coor_align}).
 
 \begin{table}[t]
   \centering
@@ -448,7 +438,7 @@ This section tabulates $\gamma^{(i)}=(W_k^{(i)})^\top b_Q^{(i)}$ at coordinates 
 
     \hline
   \end{tabular}
-  \caption{$\gamma^{(i)}=(W_k^{(i)})^\top b_Q^{(i)}$ at coordinates where $\mathrm{EPE}_1$ has massive activations (dims 138, 447) versus the baseline mean $\pm$ two standard deviations across all coordinates. Massive-$\mathrm{EPE}_1$ coordinates consistently exceed the baseline, indicating that $\mathrm{EPE}_1$ is irregularly large precisely where the bias projection is large.}
+  \caption{$\gamma^{(i)}=b_Q^{(i)}W_k^{(i)\top}$ at coordinates where $\mathrm{EPE}_1$ has massive activations (dims 138, 447) versus the baseline mean $\pm$ two standard deviations across all coordinates. Massive-$\mathrm{EPE}_1$ coordinates consistently exceed the baseline, indicating that $\mathrm{EPE}_1$ is irregularly large precisely where the bias projection is large.}
   \label{tab:appendix_coor_align}
 \end{table}
 
@@ -960,6 +950,23 @@ As a control, we zero an equal number of random $W_k$ columns (cf. \cref{fig:int
 
   \caption{Attention maps for all layers after zeroing random $W_k$ coordinates (replicating \cref{fig:intervention5_2}). The sink remains.}
 \end{figure*}
+
+
+
+\section{Related Work}
+\YRM{I didn't look at this part yet, waiting for you to finish it fist :) } 
+
+\YRM{As mentioned, this needs to be improved - By citing more, making this more concise (as concise as possible while including really vital info, and adding more in appendix if needed, like we did in our attention knockout paper )}Our investigation into the attention sink's origins builds upon four key areas of Transformer research: the methods for encoding positional information, the phenomenon of attention sink, and the recent discovery of massive activations functioning as implicit biases.
+
+\subsection{Positional Encoding in Transformers}
+By design, the self-attention mechanism has no inherent sense of token order. To address this, Transformers must be augmented with positional information. The original Transformer used fixed sinusoidal embeddings \citep{vaswani2017attention}. Many models in the GPT family \cite{Radford2018ImprovingLU}, including the GPT-2 model we investigate, use learned absolute positional embeddings - a vector for each position that is added to the token embedding at input. More recent architectures have introduced alternative methods, such as the LLaMA architecture \citep{touvron2023llama2} which utilizes Rotary Positional Embeddings (RoPE) \citep{su2021roformer}, and Attention with Linear Biases (ALiBi) \citep{press2021train}, which is a key feature in models like BLOOM \citep{bigscience2023bloom}. \citet{Irie2019LanguageMW} found that deep Transformer language models do not require positional
+encoding (NoPE - no positional encoding)
+
+\subsection{The Attention Sink Phenomenon}
+Recent empirical work has identified a curious and robust phenomenon in auto-regressive language models termed the ``attention sink'' \citep{xiao2023efficient}. This refers to the tendency of models to allocate a significant portion of their attention to token(s) even when they are not semantically important, typically the first one(s) in the sequence. As \citet{gu2025when} demonstrate, this phenomenon is not an anomaly but emerges consistently during pre-training. They show the sink emerges under different kinds of positional encoding, such as absolute PE, learnable PE, NoPE, ALiBi and more. They showed that the attention sink occurs on various models without learnable attention bias. \citet{xiao2023efficient} also show that attention sinks emerge in decoder-only LMs. A similar phenomenon has been observed in LMMs (Large Multimodal Models) (\citet{Kang2025See}, \cite{wang2025mirage}) and ViTs (Visual transformers) \cite{Feng2025EDIT:}. \YRM{This is possibly the most important part of the RW. This should be with much more details and more citations, so saying specially that he demonstrated this in model without query bias and absolute positional encoding}. Some studies have found the attention sink could have a negative impact on the achievable accuracy, inference, quantization and interpretability of LLMs (\citet{Yu2024Unveiling}, \citet{Guo2024ActiveDormantAH}) \YRM{Can you add a bit more details here? how does it hurt inference/quantization and interpretability?}.  \citet{Feng2025EDIT:} shows that attention sinks distort ViT's ability to effectively process image patches. \citet {Barbero2025Why} argue that attention sinks are a way for LLMs to avoid over-mixing and representational collapse. The main mechanism for attention sink that has been identified so far is the softmax normalization (\citet{xiao2023efficient}, \citet{gu2025when}, \citet{Zuhri2025SoftpickNA}). Some models, such as Mamba-based models as \citet{endy-etal-2025-mamba} shows, don't exhibit attention sink.
+
+\subsection{Massive Activations}
+The phenomenon of \emph{massive activations}—where a tiny subset of coordinates exhibit orders-of-magnitude larger activations—has been identified and characterized across a variety of LLMs (\citet{sun2024massive}, \citet{lindnielsen2024spectral}, \citet{lin2024duquant}) and LMMs \cite{Kang2025See}. Crucially, these massive activations often appear at specific token positions, most notably the very first token of a sequence. \citep{sun2024massive} hypothesize that these activations function as bias terms that are learned by the model. 
 
 
 \end{document}
