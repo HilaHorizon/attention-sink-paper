@@ -73,9 +73,9 @@
 
 \section{Introduction}\label{sec:intro}
 
-Transformers \cite{vaswani2023attentionneed} routinely display an \emph{attention sink}: a persistent tendency to allocate disproportionate attention mass to early (often first) positions independent of semantic content \citep{xiao2023efficient,gu2025when}. The effect is robust across many language and vision architectures. It has been observed across training stages and hyperparameters \citep{gu2025when,Guo2024ActiveDormantAH}, across model families and datasets \citep{xiao2023efficient}, and under diverse positional encodings—including absolute and learnable embeddings, ALiBi \citep{press2021train}, RoPE \citep{su2021roformer}, and even no explicit positional encodings \citep{gu2025when}. Similar sink-like patterns have also been reported in large multimodal systems and vision transformers \citep{Kang2025See,wang2025mirage,Feng2025EDIT:}. Together, these results indicate a robust, recurring phenomenon rather than a quirk of any single training recipe.\footnote{Some non-transformer architectures have been reported to have little to no sink \citep{endy-etal-2025-mamba}.}
+Transformers \cite{vaswani2023attentionneed} routinely display an \emph{attention sink}: a persistent tendency to allocate disproportionate attention mass to early (often first) positions independent of semantic content \citep{xiao2023efficient,gu2025when}. The effect is robust across many language and vision architectures. It has been observed across training stages and hyperparameters \citep{gu2025when,Guo2024ActiveDormantAH}, across model families and datasets \citep{xiao2023efficient}, and under diverse positional encodings—including absolute and learnable embeddings, ALiBi \citep{press2021train}, RoPE \citep{su2021roformer}, and even no explicit positional encodings \citep{gu2025when}. Similar sink-like patterns have also been reported in large multimodal systems and vision transformers \citep{Kang2025See,wang2025mirage,Feng2025EDIT}. Together, these results indicate a robust, recurring phenomenon rather than a quirk of any single training recipe.\footnote{Some non-transformer architectures have been reported to have little to no sink \citep{endy-etal-2025-mamba}.}
 
-The practical stakes are significant. Attention sinks can reduce effective context use and lower accuracy\citep{Yu2024Unveiling,Guo2024ActiveDormantAH}, aggravate numerical error and hinder quantization \citep{sun2024massive,lin2024duquant}, and obscure interpretability by dominating attention maps \citep{Guo2024ActiveDormantAH}. Understanding when sinks arise and how to control them is therefore directly relevant for model performance and interpretability.
+The practical stakes are significant. Attention sinks can reduce effective context use and lower accuracy \citep{Yu2024Unveiling,Guo2024ActiveDormantAH}, aggravate numerical error and hinder quantization \citep{sun2024massive,lin2024duquant}, and obscure interpretability by dominating attention maps \citep{Guo2024ActiveDormantAH}. Understanding when sinks arise and how to control them is therefore directly relevant for model performance and interpretability.
 
 We study the sink mechanistically in GPT-2–style Transformers with learned query biases and absolute positional embeddings \citep{Radford2019Language}. Combining descriptive measurements with targeted causal interventions, we tie the first-token sink to three interacting components: learned query bias, first-layer transformation of positional information (captured by effective positional encoding, EPE), and structure in the key projection. To establish causality, we pair each measurement with targeted interventions showing the sink weakens, disappears, or moves accordingly; additionally, 
 when alternative explanations are plausible, we ablate them and find the 
@@ -1029,20 +1029,20 @@ We plot the figures in the main text for the sentence \YRM{add sentence number 1
      \label{fig:more_intervention3_s1}
    \end{subfigure}
 
-    \newcommand{\bottomsep}{0.01\textwidth} % <- adjust this number to control spacing
+   \newcommand{\bottomseptwo}{0.01\textwidth} % <- adjust this number to control spacing
    
    \begin{subfigure}[t]{0.22\textwidth}
      \centering
      \fbox{\begin{minipage}[c][3.2cm][c]{.85\columnwidth}\centering Placeholder\end{minipage}}
      \caption{nullify BOS}
      \label{fig:more_intervention4_s1}
-   \end{subfigure}\hspace{\bottomsep}
+   \end{subfigure}\hspace{\bottomseptwo}
    \begin{subfigure}[t]{0.22\textwidth}
      \centering
      \fbox{\begin{minipage}[c][3.2cm][c]{.85\columnwidth}\centering Placeholder\end{minipage}}
      \caption{nullify massive rows of $W_k$}
      \label{fig:more_intervention5_s1}
-   \end{subfigure}\hspace{\bottomsep}
+   \end{subfigure}\hspace{\bottomseptwo}
    \begin{subfigure}[t]{0.22\textwidth}
      \centering
      \fbox{\begin{minipage}[c][3.2cm][c]{.85\columnwidth}\centering Placeholder\end{minipage}}
